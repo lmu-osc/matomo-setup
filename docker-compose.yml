@@ -16,6 +16,8 @@ services:
     image: matomo:latest
     container_name: matomo-app
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8080:80"
     environment:
@@ -32,6 +34,8 @@ services:
     image: matomo:latest
     container_name: matomo-cron
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./matomo:/var/www/html
     entrypoint: >
