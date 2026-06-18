@@ -93,6 +93,20 @@ This ensures the `matomo` user inside the container can write to the `tmp/`, `co
 docker compose up -d
 ```
 
+### Nginx Configuration — Private Directory Blocking
+
+The Nginx config on the server (`/etc/nginx/sites-available/www.analytics.osc.lmu.de`) includes a rule that denies access to Matomo's private directories at the reverse proxy level:
+
+```nginx
+# Deny access to Matomo's private directories
+location ~ ^/(config|tmp|core|lang|misc|node_modules) {
+    deny all;
+    return 404;
+}
+```
+
+This ensures these sensitive paths (configuration files, cache, etc.) are never served to the public, even if Matomo itself would serve them. If you see warnings in _System → Diagnostics → Required Private Directories_ about connection failures to these paths, this is expected — the check tries to reach the public URL from inside the Docker container, which won't work in our setup. The directories are properly blocked by Nginx.
+
 ### Email & SMTP Setup
 
 Sending emails from Matomo (e.g., password resets, scheduled reports) requires SMTP configuration. Our setup uses **Postfix** on the Docker host as an SMTP relay. That is, the matomo-app Docker container relays messages out of the container, and then uses the server's Postfix configuration to send emails.
