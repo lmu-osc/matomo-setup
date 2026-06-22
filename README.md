@@ -99,12 +99,23 @@ If you install the [LogViewer](https://plugins.matomo.org/LogViewer) plugin from
 
 > Specified path to log file does not exist: /tmp/logs/matomo.log
 
-This means Matomo is not yet configured to write logs to a file (by default it logs to stderr, which goes to `docker logs`). In our case, the fix was to simply create the file. That is:
+This means Matomo is not yet configured to write logs to a file (by default it logs to stderr, which goes to `docker logs`). In our case, the fix was to:
 
-```bash
-# cd to the root, i.e. where the Docker Compose file lives
-touch /matomo/tmp/logs/matomo.log
-```
+1. **Create the log file:**
+
+   ```bash
+   # cd to the root, i.e. where the Docker Compose file lives
+   touch ./matomo/tmp/logs/matomo.log
+   ```
+
+2. **Configure Matomo to write to the log file** by adding the following to `./matomo/config/config.ini.php`:
+
+   ```ini
+   [log]
+   log_writers[] = file
+   ```
+
+   This tells Matomo to use the file writer in addition to (or instead of) the default stderr output.
 
 ### Nginx Configuration — Private Directory Blocking
 
