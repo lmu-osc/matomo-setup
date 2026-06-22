@@ -93,6 +93,19 @@ This ensures the `matomo` user inside the container can write to the `tmp/`, `co
 docker compose up -d
 ```
 
+### LogViewer Plugin — Log File Configuration
+
+If you install the [LogViewer](https://plugins.matomo.org/LogViewer) plugin from the Matomo Marketplace, you may see:
+
+> Specified path to log file does not exist: /tmp/logs/matomo.log
+
+This means Matomo is not yet configured to write logs to a file (by default it logs to stderr, which goes to `docker logs`). In our case, the fix was to simply create the file. That is:
+
+```bash
+# cd to the root, i.e. where the Docker Compose file lives
+touch /matomo/tmp/logs/matomo.log
+```
+
 ### Nginx Configuration — Private Directory Blocking
 
 The Nginx config on the server (`/etc/nginx/sites-available/www.analytics.osc.lmu.de`) includes a rule that denies access to Matomo's private directories at the reverse proxy level:
