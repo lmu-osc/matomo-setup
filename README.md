@@ -111,8 +111,13 @@ This means Matomo is not yet configured to write logs to a file (by default it l
 2. **Configure Matomo to write to the log file** by adding the following to `./matomo/config/config.ini.php`:
 
    ```ini
+   # https://matomo.org/faq/troubleshooting/faq_115/
    [log]
    log_writers[] = file
+   log_level = "INFO"
+
+   [Debug]
+   enable_sql_profiler = 1
    ```
 
    This tells Matomo to use the file writer in addition to (or instead of) the default stderr output.
