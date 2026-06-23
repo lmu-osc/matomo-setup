@@ -32,6 +32,23 @@ The stack consists of three Docker services defined in `docker-compose.yml`:
 - This processes visit data into pre-computed reports, keeping the UI fast.
 - **Important:** In Matomo's _System > General Settings > Archiving Settings_, "Archive reports when viewed from the browser" should be set to **"No"** when using cron-based archiving. This is set manually in the browser after initial setup.
 
+## Data Retention & Privacy
+
+The following data retention policy has been configured in Matomo (via _Administration → Privacy → Anonymize Data_):
+
+| Setting                                   | Value            |
+|-------------------------------------------|------------------|
+| Raw data retention (logs)                 | 1825 days (5 years) |
+| Reports retention                         | NA |
+
+### Rationale
+
+- **5-year retention** provides a reasonable historical baseline for tracking the center's growth in engagement and outreach over a medium-term period.
+- The policy ensures the OSC's privacy practices remain consistent with its published statements.
+- These values may be revisited in the future as the center's needs evolve.
+
+> **Note:** Deletion is handled automatically by Matomo's `core:archive` command, which runs every 5 minutes via the `cron` service. Configure or review these settings at any time under _Administration → Privacy → Delete old reports & logs_.
+
 ## Set-Up on Our Server
 
 The Matomo service is already set-up on our server so you should not have to repeat these steps. However, included here are the generally steps you would need to take to do this:
