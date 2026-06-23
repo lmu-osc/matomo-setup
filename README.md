@@ -47,7 +47,7 @@ The following data retention policy has been configured in Matomo (via _Administ
 - The policy ensures the OSC's privacy practices remain consistent with its published statements.
 - These values may be revisited in the future as the center's needs evolve.
 
-> **Note:** Deletion is handled automatically by Matomo's `core:archive` command, which runs every 5 minutes via the `cron` service. Configure or review these settings at any time under _Administration → Privacy → Delete old reports & logs_.
+> **Note:** Deletion is handled automatically by Matomo', running on a monthly basis.
 
 ## Set-Up on Our Server
 
