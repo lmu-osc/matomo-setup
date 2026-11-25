@@ -6,21 +6,23 @@ This repository contains the Docker Compose configuration for deploying [Matomo]
 
 The stack consists of three Docker services defined in `docker-compose.yml`:
 
-| Service  | Container Name | Image              | Purpose                                      |
-|----------|---------------|--------------------|----------------------------------------------|
-| `db`     | `matomo-db`   | `mariadb:latest`   | MariaDB database for Matomo                  |
-| `matomo` | `matomo-app`  | `matomo:latest`    | Main Matomo application (web interface)      |
-| `cron`   | `matomo-cron` | `matomo:latest`    | Periodic report archiving via cron            |
+| Service  | Container Name | Image            | Purpose                                 |
+| -------- | -------------- | ---------------- | --------------------------------------- |
+| `db`     | `matomo-db`    | `mariadb:latest` | MariaDB database for Matomo             |
+| `matomo` | `matomo-app`   | `matomo:latest`  | Main Matomo application (web interface) |
+| `cron`   | `matomo-cron`  | `matomo:latest`  | Periodic report archiving via cron      |
 
 ### Services Explained
 
 #### `db` — MariaDB Database
+
 - Runs the latest MariaDB image with a `64MB` max packet size.
 - Creates a `matomo` database automatically via the `MARIADB_DATABASE` environment variable.
 - Persists data to `./db` on the host via a bind mount.
 - Credentials are sourced from environment variables (see [Environment Variables](#environment-variables)).
 
 #### `matomo` — Matomo Application
+
 - The main Matomo instance, listening on `127.0.0.1:8080` (mapped to port 80 inside the container).
 - Configured via environment variables to connect to the `db` service.
 - Persists its configuration, plugins, and uploaded files to `./matomo` on the host.
@@ -28,6 +30,7 @@ The stack consists of three Docker services defined in `docker-compose.yml`:
 - Depends on the `db` service starting first.
 
 #### `cron` — Archiving Cron
+
 - Runs an infinite loop that executes `core:archive` every 5 minutes (300 seconds).
 - This processes visit data into pre-computed reports, keeping the UI fast.
 - **Important:** In Matomo's _System > General Settings > Archiving Settings_, "Archive reports when viewed from the browser" should be set to **"No"** when using cron-based archiving. This is set manually in the browser after initial setup.
@@ -36,10 +39,10 @@ The stack consists of three Docker services defined in `docker-compose.yml`:
 
 The following data retention policy has been configured in Matomo (via _Administration → Privacy → Anonymize Data_):
 
-| Setting                                   | Value            |
-|-------------------------------------------|------------------|
-| Raw data retention (logs)                 | 1825 days (5 years) |
-| Reports retention                         | NA |
+| Setting                   | Value               |
+| ------------------------- | ------------------- |
+| Raw data retention (logs) | 1825 days (5 years) |
+| Reports retention         | NA                  |
 
 ### Rationale
 
@@ -54,18 +57,22 @@ The following data retention policy has been configured in Matomo (via _Administ
 The Matomo service is already set-up on our server so you should not have to repeat these steps. However, included here are the generally steps you would need to take to do this:
 
 1. **Clone the repository:**
+
    ```bash
    git clone git@github.com:lmu-osc/matomo-setup.git
    cd matomo-setup
    ```
 
 2. **Create the environment file:**
+
    ```bash
    cp .env-example .env
    ```
+
    Edit `.env` and fill in secure values for the database credentials.
 
 3. **Start the services:**
+
    ```bash
    docker compose up -d
    ```
@@ -79,13 +86,45 @@ The Matomo service is already set-up on our server so you should not have to rep
 
 The following variables are expected in the `.env` file (see `.env-example`):
 
-| Variable                | Description                            |
-|-------------------------|----------------------------------------|
-| `MARIADB_USER`          | Matomo database user                   |
-| `MARIADB_PASSWORD`      | Password for the Matomo database user  |
-| `MARIADB_ROOT_PASSWORD` | Password for the MariaDB root user     |
+| Variable                | Description                           |
+| ----------------------- | ------------------------------------- |
+| `MARIADB_USER`          | Matomo database user                  |
+| `MARIADB_PASSWORD`      | Password for the Matomo database user |
+| `MARIADB_ROOT_PASSWORD` | Password for the MariaDB root user    |
 
 ## Troubleshooting & Setup Notes
+
+### Matomo Reports an Untrusted Host
+
+If Matomo displays a warning that it is configured for `https://localhost:8080/`
+when you visit `https://www.analytics.osc.lmu.de/`, add the public hostname to
+Matomo's trusted hosts on the server:
+
+1. Edit the persistent config file from the directory containing
+   `docker-compose.yml`:
+
+   ```bash
+   sudo nano ./matomo/config/config.ini.php
+   ```
+
+2. In the existing `[General]` section, add:
+
+   ```ini
+   trusted_hosts[] = "www.analytics.osc.lmu.de"
+   ```
+
+   Do not add a second `[General]` section if one already exists.
+
+3. Save the file, then restart the web container:
+
+   ```bash
+   docker compose restart matomo
+   ```
+
+The `./matomo:/var/www/html` bind mount in `docker-compose.yml` keeps this
+config on the server, so it remains in place when the container is restarted
+or recreated. Then visit `https://www.analytics.osc.lmu.de/` directly and sign
+in there; do not follow the warning's `localhost` link.
 
 ### File Permissions
 
@@ -97,18 +136,26 @@ or
 
 > The Matomo configuration file (config/config.ini.php) is not writable, some of your changes might not be saved.
 
-To resolve these, stop the stack and set the appropriate permissions:
+The Matomo web server runs as `www-data`. The `cron` service is also configured
+to run as `www-data` so archive jobs do not create root-owned cache files that
+the web server cannot update. To repair existing temporary files, run these
+commands from the directory containing `docker-compose.yml`:
 
 ```bash
-docker compose down
-chmod -R 777 ./matomo/
+docker exec -u 0 matomo-app chown -R www-data:www-data /var/www/html/tmp
+docker exec -u 0 matomo-app chmod -R u+rwX /var/www/html/tmp
+docker compose up -d --force-recreate cron
 ```
 
-This ensures the `matomo` user inside the container can write to the `tmp/`, `config/`, and other directories. Then restart the stack:
+Ownership and permissions on `./matomo` are stored on the host because it is a
+bind mount; container restarts do not reset them. Running cron as `www-data`
+keeps newly created archive/cache files writable by the web server. Avoid
+`chmod -R 777`, which grants write access to every user. If Matomo reports a
+write error in another directory, repair that specific directory similarly.
 
-```bash
-docker compose up -d
-```
+The configuration directory may also need to be writable by `www-data` when
+Matomo must update its config. Adjust it only if Matomo reports a config
+permission error.
 
 ### LogViewer Plugin — Log File Configuration
 
@@ -170,7 +217,7 @@ sudo postconf -e "mynetworks = 127.0.0.0/8, 172.17.0.0/16, 172.18.0.0/16"
 sudo systemctl restart postfix
 ```
 
-Note that the IP address will *likely* be in the included CIDR ranges already, but it's good to check that the new IP address after a restart is still encompassed by the included networks trusted by Postfix.
+Note that the IP address will _likely_ be in the included CIDR ranges already, but it's good to check that the new IP address after a restart is still encompassed by the included networks trusted by Postfix.
 
 > **Note:** The Docker network IP range may change across environments or if containers are recreated. A more robust approach would be to configure Postfix as a full SMTP relay with proper authentication, or to use an external SMTP service.
 
@@ -214,7 +261,7 @@ docker compose up -d
 docker exec matomo-app php /var/www/html/console core:test-email CONTACT@lmu.de
 ```
 
-> You should only ever be adding LMU domain email addresses to our Matomo so you only need to test against such emails. 
+> You should only ever be adding LMU domain email addresses to our Matomo so you only need to test against such emails.
 
 ### Cron Archiving
 
